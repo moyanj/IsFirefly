@@ -124,10 +124,12 @@ def validate(model, criterion, val_loader):
 if __name__ == "__main__":
     torch.cuda.empty_cache()  # 释放显存
     # 初始化模型、损失函数、优化器和学习率调度器
-    model = Model(num_classes=2, freeze_backbone=False).to(device)
+    model = Model(num_classes=2, freeze_backbone=True).to(device)
+    """
     model.load_state_dict(
         torch.load("model_final.pth", map_location=device, weights_only=True)
     )
+    """
     print("Compiling...")
     torch.compile()
     print("Compiled.")
