@@ -17,7 +17,11 @@ transform = transforms.Compose(
     [
         transforms.RandomRotation(degrees=25),  # 随机旋转角度范围为 [-15, 15]
         transforms.RandomHorizontalFlip(p=0.2),  # 随机水平翻转，概率为 0.5
-        transforms.RandAugment(4, 5),
+        transforms.RandomInvert(p=0.35),
+        transforms.ColorJitter(
+            brightness=0.3, contrast=0.35, saturation=0.47, hue=0.4
+        ),  # 随机调整亮度和对比度
+        transforms.RandomSolarize(p=0.25, threshold=128),
     ]
 )
 
@@ -46,7 +50,7 @@ for raw_dir in raw_dirs:
             img.save(output_path)
 
             # 对每张图片生成多张增强后的图片
-            for i in range(10):  # 假设每张图片生成 5 张增强后的图片
+            for i in range(7):  # 假设每张图片生成 5 张增强后的图片
                 # 应用数据增强
                 augmented_img = transform(img)
 
