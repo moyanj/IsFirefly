@@ -1,0 +1,5 @@
+model/
+dataset/
+preprocessed/
+__pycache__/
+.venv/
