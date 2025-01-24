@@ -1,11 +1,25 @@
-from torchvision.models import resnet152, ResNet152_Weights
+from torchvision.models import resnet152, ResNet152_Weights, resnet50, ResNet50_Weights
 import torch.nn as nn
 
 
 class Model(nn.Module):
-    def __init__(self, num_classes, freeze_backbone=False, dropout=0.5):
+    model_map = {
+        "resnet152": [resnet152, ResNet152_Weights.IMAGENET1K_V2],
+        "resnet50": [resnet50, ResNet50_Weights.IMAGENET1K_V2],
+    }
+
+    def __init__(
+        self,
+        num_classes,
+        freeze_backbone=False,
+        dropout=0.5,
+        model_name="resnet152",
+        use_pretrained=True,
+    ):
         super(Model, self).__init__()
-        self.resnet = resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
+        self.resnet = self.model_map[model_name][0](
+            weights=self.model_map[model_name][1] if use_pretrained else None
+        )
 
         # 冻结ResNet-101的卷积层
         if freeze_backbone:
