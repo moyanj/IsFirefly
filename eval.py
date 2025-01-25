@@ -19,9 +19,10 @@ class FireflyPredictor:
     def load_model(self, model_name):
         if not os.path.exists(os.path.join(model_dir, model_name + ".pth")):
             raise ValueError(f"Model '{model_name}' not found in model_map.")
+        model_type = "resnet" + model_name.split("_")[2]
         self.model_name = model_name
         model_path = os.path.join(model_dir, model_name + ".pth")
-        self.model = Model(2)
+        self.model = Model(2, model_name=model_type, use_pretrained=False)
         self.model.load_state_dict(
             torch.load(model_path, map_location=self.device, weights_only=True)
         )
