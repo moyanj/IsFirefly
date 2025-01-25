@@ -3,13 +3,9 @@ from model import Model
 from PIL import Image
 import torch
 import gradio as gr
+import os
 
-# 模型映射表
-model_map = {
-    "IsFirefly_v2_152": "./model/res152/Model_87.18_1248.pth",
-    "IsFirefly_v1_152": "./model/res152/Model_0.1077(1027图).pth",
-    # 可以在此添加更多模型
-}
+model_dir = "model"
 
 
 # 定义一个类来封装模型和预测逻辑
@@ -21,10 +17,10 @@ class FireflyPredictor:
         self.load_model(model_name)
 
     def load_model(self, model_name):
-        if model_name not in model_map:
+        if not os.path.exists(os.path.join(model_dir, model_name + ".pth")):
             raise ValueError(f"Model '{model_name}' not found in model_map.")
         self.model_name = model_name
-        model_path = model_map[model_name]
+        model_path = os.path.join(model_dir, model_name + ".pth")
         self.model = Model(2)
         self.model.load_state_dict(
             torch.load(model_path, map_location=self.device, weights_only=True)
@@ -47,7 +43,7 @@ class FireflyPredictor:
                 confidence = probabilities[0].tolist()
 
                 # 格式化置信度为字符串
-                confidence_str = f"{confidence[predicted_class] * 100:.4f}%"
+                confidence_str = f"{confidence[predicted_class] * 100:.4f}%"  # type: ignore
 
                 # 解析结果
                 result = [self.id_to_class[int(predicted_class)], confidence_str]
@@ -69,7 +65,7 @@ class FireflyPredictor:
             inputs=[
                 gr.Image(type="pil"),  # 输入为 PIL 图像
                 gr.Dropdown(
-                    choices=list(model_map.keys()),
+                    choices=[i.replace(".pth", "") for i in os.listdir(model_dir)],
                     value=self.model_name,
                     label="选择模型",
                     interactive=True,
@@ -95,4 +91,4 @@ if __name__ == "__main__":
     # 创建 Gradio 接口
     iface = predictor.create_gradio_interface()
     # 启动 Gradio 应用
-    iface.launch(server_name="0.0.0.0", server_port=8080)
+    iface.launch(server_name="0.0.0.0", server_port=8080, pwa=True)

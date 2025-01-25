@@ -4,4 +4,4 @@ preprocessed/
 __pycache__/
 .venv/
 .gradio/
-preprocessed.zip
+*.zip

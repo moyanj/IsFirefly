@@ -5,11 +5,11 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 
 # 定义原始目录和输出目录
-raw_dirs = ["dataset/firefly", "dataset/no"]
+raw_dirs = ["dataset/yes", "dataset/no"]
 output_dir = "preprocessed"
 
 # 删除已存在的输出目录（如果存在）
-shutil.rmtree(output_dir, ignore_errors=True)
+# shutil.rmtree(output_dir, ignore_errors=True)
 
 # 定义数据增强操作
 # 这里定义了随机旋转、随机水平翻转、随机调整亮度和对比度
@@ -37,20 +37,31 @@ for raw_dir in raw_dirs:
         if file.lower().endswith((".png", ".jpg", ".jpeg")):
             # 打开图片并进行预处理
             img_path = os.path.join(raw_dir, file)
+
+            output_file = os.path.splitext(file)[0] + ".jpg"  # 确保输出为 JPG 格式
+            output_path = os.path.join(output_class_dir, output_file)
+
+            if os.path.exists(output_path):
+                print(f"Skipping existing file: {output_path}")
+                continue
+
             img = Image.open(img_path)
-            img = img.convert("RGB")  # 确保图片是 RGB 格式
-            img = img.resize((640, 640))  # 调整图片大小
+            # print(f"Processing image: {img_path}")
+            try:
+                img = img.convert("RGB")  # 确保图片是 RGB 格式
+            except Exception as e:
+                print(img_path, e)
+                os.remove(img_path)
+                exit(1)
+            img = img.resize((480, 480))  # 调整图片大小
 
             # 创建输出目录（如果不存在）
             os.makedirs(output_class_dir, exist_ok=True)
 
             # 保存原始处理后的图片
-            output_file = os.path.splitext(file)[0] + ".jpg"  # 确保输出为 JPG 格式
-            output_path = os.path.join(output_class_dir, output_file)
             img.save(output_path)
-
             # 对每张图片生成多张增强后的图片
-            for i in range(7):  # 假设每张图片生成 5 张增强后的图片
+            for i in range(1):  # 假设每张图片生成 5 张增强后的图片
                 # 应用数据增强
                 augmented_img = transform(img)
 
@@ -60,7 +71,7 @@ for raw_dir in raw_dirs:
                     output_class_dir, augmented_output_file
                 )
                 augmented_img.save(augmented_output_path)
-
+            img.close()
 print(f"Preprocessing completed. Processed images saved to '{output_dir}'.")
 
 total = 0
