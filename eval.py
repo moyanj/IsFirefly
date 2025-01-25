@@ -88,7 +88,7 @@ class FireflyPredictor:
 # 主程序
 if __name__ == "__main__":
     # 初始化一个模型实例
-    predictor = FireflyPredictor(model_name="IsFirefly_v2_152")
+    predictor = FireflyPredictor(model_name="IsFirefly_v2_152_87%")
     # 创建 Gradio 接口
     iface = predictor.create_gradio_interface()
     # 启动 Gradio 应用
