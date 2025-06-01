@@ -123,6 +123,9 @@ class Trainer:
             "best_accuracy": max(val_accuracy, getattr(self, "best_accuracy", 0)),
             "args": vars(self.args),
             "losses": losses,
+            "is_last": is_last,
+            "time": datetime.now().isoformat(),
+            "step": epoch * len(self.train_loader),
         }
 
         # 2. 智能文件命名系统
@@ -152,6 +155,7 @@ class Trainer:
             "scheduler_state": self.scheduler.state_dict(),
             "loss": loss,
             "args": vars(self.args),
+            "time": datetime.now().isoformat(),
         }
         torch.save(checkpoint, f"{self.model_dir}/ckpt_ep{epoch:03d}_{step:05d}.pt")
 

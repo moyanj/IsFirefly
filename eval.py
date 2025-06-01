@@ -5,7 +5,7 @@ import torch
 import gradio as gr
 import os
 
-model_dir = "model"
+model_dir = "models/2025-06-01_17:56"
 
 
 # 定义一个类来封装模型和预测逻辑
@@ -13,19 +13,19 @@ class FireflyPredictor:
     def __init__(self, model_name):
         self.model_name = model_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.id_to_class = {0: "是", 1: "不是"}
+        self.id_to_class = {1: "是", 0: "不是"}
         self.load_model(model_name)
 
     def load_model(self, model_name):
-        if not os.path.exists(os.path.join(model_dir, model_name + ".pth")):
+        if not os.path.exists(os.path.join(model_dir, model_name + ".pt")):
             raise ValueError(f"Model '{model_name}' not found in model_map.")
-        model_type = "resnet" + model_name.split("_")[2]
         self.model_name = model_name
-        model_path = os.path.join(model_dir, model_name + ".pth")
-        self.model = Model(2, model_name=model_type, use_pretrained=False)
-        self.model.load_state_dict(
-            torch.load(model_path, map_location=self.device, weights_only=True)
+        model_path = os.path.join(model_dir, model_name + ".pt")
+        checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
+        self.model = Model(
+            2, model_name=checkpoint["args"]["model_name"], use_pretrained=False
         )
+        self.model.load_state_dict(checkpoint["model_state"])
         self.model.to(self.device)
         self.model.eval()
         print(f"Model '{model_name}' loaded successfully.")
@@ -66,10 +66,11 @@ class FireflyPredictor:
             inputs=[
                 gr.Image(type="pil"),  # 输入为 PIL 图像
                 gr.Dropdown(
-                    choices=[i.replace(".pth", "") for i in os.listdir(model_dir)],
+                    choices=[i.replace(".pt", "") for i in os.listdir(model_dir)],
                     value=self.model_name,
                     label="选择模型",
                     interactive=True,
+                    allow_custom_value=True,
                 ),
             ],
             outputs=[
@@ -88,7 +89,7 @@ class FireflyPredictor:
 # 主程序
 if __name__ == "__main__":
     # 初始化一个模型实例
-    predictor = FireflyPredictor(model_name="IsFirefly_v2_152_87%")
+    predictor = FireflyPredictor(model_name="best_ckpt_ep001")
     # 创建 Gradio 接口
     iface = predictor.create_gradio_interface()
     # 启动 Gradio 应用
