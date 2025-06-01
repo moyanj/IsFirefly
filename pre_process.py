@@ -4,6 +4,9 @@ import shutil
 import torchvision.transforms as transforms
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # 定义原始目录和输出目录
 raw_dirs = ["dataset/yes", "dataset/no"]
@@ -13,8 +16,8 @@ output_dir = "preprocessed"
 transform = transforms.Compose(
     [
         transforms.RandomRotation(degrees=25),
-        transforms.RandomHorizontalFlip(p=0.2),
-        transforms.RandomSolarize(p=0.25, threshold=128),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomSolarize(p=0.5, threshold=128),
     ]
 )
 

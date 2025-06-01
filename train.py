@@ -46,6 +46,7 @@ class Trainer:
         self.train_loader, self.val_loader = (
             self.prepare_data_loaders()
         )  # 准备数据加载器
+        self.save_metadata()
 
     def setup_directories(self):
         """创建模型保存目录并清理旧日志"""
@@ -98,38 +99,74 @@ class Trainer:
         )
         return train_loader, val_loader
 
-    def save_checkpoint(self, epoch, loss, accuracy, step, is_best=False):
-        """保存模型检查点
+    def save_checkpoint(
+        self, epoch, val_loss, val_accuracy, losses, is_best=False, is_last=False
+    ):
+        """优化后的模型保存逻辑
         Args:
-            epoch: 当前epoch数
-            loss: 当前损失值
-            accuracy: 当前准确率
+            epoch: 当前训练轮次
+            val_loss: 验证损失
+            val_accuracy: 验证准确率
+            losses: 损失列表
             is_best: 是否当前最佳模型
+            is_last: 是否最终模型
         """
-        metadata = {
-            "epoch": epoch,
-            "loss": loss,
-            "accuracy": accuracy,
-            "args": vars(self.args),  # 训练参数存档
-            "device": str(self.device),
-            "model_name": self.args.model_name,
-            "timestamp": time.time(),
-            "seed": torch.initial_seed(),
-        }
+        # 1. 统一检查点数据结构
         checkpoint = {
-            "model": self.model.state_dict(),  # type: ignore 模型参数
-            "optimizer": self.optimizer.state_dict(),  # 优化器状态
+            "type": "epoch",
+            "epoch": epoch,
+            "model_state": self.model.state_dict(),
+            "optimizer_state": self.optimizer.state_dict(),
+            "scheduler_state": self.scheduler.state_dict(),
+            "val_loss": val_loss,
+            "val_accuracy": val_accuracy,
+            "best_accuracy": max(val_accuracy, getattr(self, "best_accuracy", 0)),
+            "args": vars(self.args),
+            "losses": losses,
         }
 
-        # 标准检查点命名（包含epoch和loss信息）
-        filename = f"{self.model_dir}/Epoch{epoch:03d}_{step:04d}.pth"
-        torch.save(checkpoint, filename)
-        json.dump(metadata, open(f"{self.model_dir}/Epoch{epoch:03d}_{step:04d}", "w"))
-        # 如果是当前最佳模型，额外保存副本
+        # 2. 智能文件命名系统
+        base_name = f"ckpt_ep{epoch:03d}"
         if is_best:
-            best_path = f"{self.model_dir}/best_model.pth"
-            shutil.copyfile(filename, best_path)
-            json.dump(metadata, open(f"{self.model_dir}/best_model.json", "w"))
+            base_name = "best_" + base_name
+        if is_last:
+            base_name = "final_" + base_name
+
+        final_path = f"{self.model_dir}/{base_name}.pt"
+
+        try:
+
+            # 保存检查点（使用torch.save的压缩格式）
+            torch.save(checkpoint, final_path)
+
+        except Exception as e:
+            print(f"保存检查点失败: {str(e)}")
+
+    def save_checkpoint_step(self, epoch, loss, step):
+        checkpoint = {
+            "type": "step",
+            "epoch": epoch,
+            "step": step,
+            "model_state": self.model.state_dict(),
+            "optimizer_state": self.optimizer.state_dict(),
+            "scheduler_state": self.scheduler.state_dict(),
+            "loss": loss,
+            "args": vars(self.args),
+        }
+        torch.save(checkpoint, f"{self.model_dir}/ckpt_ep{epoch:03d}_{step:05d}.pt")
+
+    def save_metadata(self):
+        """保存轻量级训练元数据"""
+        metadata = {
+            "timestamp": datetime.now().isoformat(),
+            "config": vars(self.args),
+            "seed": torch.initial_seed(),
+        }
+
+        # 写入JSON文件
+        meta_path = os.path.join(self.model_dir, "training_meta.json")
+        with open(meta_path, "w") as f:
+            json.dump(metadata, f, indent=4)
 
     def train_epoch(self, epoch):
         """执行单个epoch的训练
@@ -161,19 +198,15 @@ class Trainer:
             progress_bar.set_postfix(
                 {"loss": f"{np.mean(losses[-10:]):.4f}"}
             )  # 显示最近10个batch的平均损失
-
+            global_step = epoch * len(self.train_loader) + batch_idx
             # TensorBoard记录（如果启用）
             if self.writer:
-                global_step = epoch * len(self.train_loader) + batch_idx
                 self.writer.add_scalar("Loss/train_step", loss.item(), global_step)
 
-            # 定期保存检查点
-            if (
-                epoch * len(self.train_loader) + batch_idx
-            ) % self.args.checkpoint_interval == 0:
-                self.save_checkpoint(epoch, loss.item(), 0, batch_idx)
+            if global_step % self.args.checkpoint_interval == 0 and global_step > 0:
+                self.save_checkpoint_step(epoch, loss.item(), global_step)
 
-        return np.mean(losses)  # 返回本epoch平均损失
+        return np.mean(losses), losses  # 返回本epoch平均损失
 
     def validate(self):
         """在验证集上评估模型性能
@@ -202,13 +235,42 @@ class Trainer:
         avg_loss = val_loss / len(self.val_loader)  # 计算平均损失
         return avg_loss, accuracy
 
+    def load_checkpoint(self, ckpt_path):
+        """加载检查点继续训练"""
+        if not os.path.exists(ckpt_path):
+            raise FileNotFoundError(f"检查点文件不存在: {ckpt_path}")
+
+        checkpoint = torch.load(ckpt_path, map_location=self.device)
+
+        # 恢复模型状态
+        self.model.load_state_dict(checkpoint["model_state"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
+        self.scheduler.load_state_dict(checkpoint["scheduler_state"])
+
+        # 返回恢复信息
+        return {
+            "start_epoch": checkpoint["epoch"] + 1,
+            "global_step": checkpoint["global_step"],
+            "best_accuracy": checkpoint["best_accuracy"],
+        }
+
     def train(self):
         """执行完整训练流程"""
-        best_accuracy = 0  # 记录最佳准确率
+
+        if self.args.resume_from:
+            resume_info = self.load_checkpoint(self.args.resume_from)
+            start_epoch = resume_info["start_epoch"]
+            global_step = resume_info["global_step"]
+            best_accuracy = resume_info["best_accuracy"]
+            print(f"从检查点恢复训练: epoch={start_epoch}, step={global_step}")
+        else:
+            start_epoch = 0
+            global_step = 0
+            best_accuracy = 0
 
         for epoch in range(self.args.epochs):
             # 训练阶段
-            train_loss = self.train_epoch(epoch)
+            train_loss, losses = self.train_epoch(epoch)
 
             # 验证阶段
             val_loss, val_accuracy = self.validate()
@@ -222,7 +284,7 @@ class Trainer:
                 best_accuracy = val_accuracy
 
             # 保存检查点
-            self.save_checkpoint(epoch, val_loss, val_accuracy, 0, is_best)
+            self.save_checkpoint(epoch, val_loss, val_accuracy, losses, is_best)
 
             # 记录训练指标
             if self.writer:
@@ -244,9 +306,9 @@ class Trainer:
         # 训练完成后关闭TensorBoard写入器
         if self.writer:
             self.writer.close()
-
+        val_loss, val_accuracy = self.validate()
         # 保存最终模型
-        torch.save(self.model.state_dict(), f"{self.model_dir}/final_model.pth")
+        self.save_checkpoint(self.args.epochs, val_loss, val_accuracy, 0, is_last=True)
         print(f"训练完成。模型已保存至 {self.model_dir}")
 
 
@@ -260,7 +322,7 @@ def parse_args():
     train_group.add_argument("--batch_size", type=int, default=32, help="批次大小")
     train_group.add_argument("--lr", type=float, default=1e-3, help="初始学习率")
     train_group.add_argument(
-        "--num_workers", type=int, default=4, help="数据加载工作线程数"
+        "--num_workers", type=int, default=12, help="数据加载工作线程数"
     )
 
     # 模型参数组
@@ -286,6 +348,9 @@ def parse_args():
     )
     log_group.add_argument(
         "--checkpoint_interval", type=int, default=100, help="检查点保存间隔（步数）"
+    )
+    parser.add_argument(
+        "--resume_from", type=str, default=None, help="从指定检查点恢复训练"
     )
 
     return parser.parse_args()
