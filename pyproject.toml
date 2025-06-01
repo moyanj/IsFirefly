@@ -3,11 +3,11 @@ name = "isfirefly"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
 dependencies = [
     "gradio>=5.32.0",
     "httpx>=0.28.1",
     "pillow>=11.2.1",
+    "tensorboard>=2.19.0",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
     "tqdm>=4.67.1",

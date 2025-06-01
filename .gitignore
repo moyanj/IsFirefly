@@ -6,3 +6,5 @@ __pycache__/
 .gradio/
 *.zip
 photos.csv000
+tf-logs/
+models/

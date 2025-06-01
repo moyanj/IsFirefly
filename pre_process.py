@@ -3,82 +3,90 @@ import os
 import shutil
 import torchvision.transforms as transforms
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 
 # 定义原始目录和输出目录
 raw_dirs = ["dataset/yes", "dataset/no"]
 output_dir = "preprocessed"
 
-# 删除已存在的输出目录（如果存在）
-# shutil.rmtree(output_dir, ignore_errors=True)
-
-# 定义数据增强操作
-# 这里定义了随机旋转、随机水平翻转、随机调整亮度和对比度
+# 定义数据增强操作（使用更高效的操作）
 transform = transforms.Compose(
     [
-        transforms.RandomRotation(degrees=25),  # 随机旋转角度范围为 [-15, 15]
-        transforms.RandomHorizontalFlip(p=0.2),  # 随机水平翻转，概率为 0.5
-        # transforms.RandomInvert(p=0.35),        # 随机颜色反转
-        # transforms.ColorJitter(brightness=0.3, contrast=0.35, saturation=0.47, hue=0.4),
-        transforms.RandomSolarize(p=0.25, threshold=128),  # 随机过曝
+        transforms.RandomRotation(degrees=25),
+        transforms.RandomHorizontalFlip(p=0.2),
+        transforms.RandomSolarize(p=0.25, threshold=128),
     ]
 )
 
-# 遍历每个原始目录
-for raw_dir in raw_dirs:
-    # 获取当前目录的类别名称
-    class_name = os.path.basename(raw_dir)
-    output_class_dir = os.path.join(output_dir, class_name)
 
-    # 遍历当前目录中的所有文件
-    for file in tqdm(os.listdir(raw_dir)):
-        # 检查文件是否是图片（可以根据需要扩展支持更多格式）
-        if file.lower().endswith((".png", ".jpg", ".jpeg")):
-            # 打开图片并进行预处理
-            img_path = os.path.join(raw_dir, file)
+# 预计算所有文件路径
+def get_image_paths(raw_dirs):
+    image_paths = []
+    for raw_dir in raw_dirs:
+        class_name = os.path.basename(raw_dir)
+        output_class_dir = os.path.join(output_dir, class_name)
+        os.makedirs(output_class_dir, exist_ok=True)
 
-            output_file = os.path.splitext(file)[0] + ".jpg"  # 确保输出为 JPG 格式
-            output_path = os.path.join(output_class_dir, output_file)
+        for file in os.listdir(raw_dir):
+            if file.lower().endswith((".png", ".jpg", ".jpeg")):
+                img_path = os.path.join(raw_dir, file)
+                output_base = os.path.splitext(file)[0]
+                base_output_path = os.path.join(output_class_dir, f"{output_base}.jpg")
 
-            if os.path.exists(output_path):
-                print(f"Skipping existing file: {output_path}")
-                continue
+                image_paths.append((img_path, output_class_dir, output_base))
+    return image_paths
 
-            img = Image.open(img_path)
-            # print(f"Processing image: {img_path}")
-            try:
-                img = img.convert("RGB")  # 确保图片是 RGB 格式
-            except Exception as e:
-                print(img_path, e)
-                os.remove(img_path)
-                exit(1)
-            img = img.resize((480, 480))  # 调整图片大小
 
-            # 创建输出目录（如果不存在）
-            os.makedirs(output_class_dir, exist_ok=True)
+# 处理单张图片的函数
+def process_image(args):
+    img_path, output_class_dir, output_base = args
+    try:
+        with Image.open(img_path) as img:
+            img = img.convert("RGB")
+            img = img.resize((480, 480))
 
             # 保存原始处理后的图片
-            img.save(output_path)
-            # 对每张图片生成多张增强后的图片
-            for i in range(1):  # 假设每张图片生成 5 张增强后的图片
-                # 应用数据增强
+            base_output_path = os.path.join(output_class_dir, f"{output_base}.jpg")
+            img.save(base_output_path, quality=95, optimize=True)
+
+            # 生成增强图片
+            for i in range(1):  # 生成1张增强图
                 augmented_img = transform(img)
-
-                # 保存增强后的图片
-                augmented_output_file = os.path.splitext(file)[0] + f"_{i}.jpg"
-                augmented_output_path = os.path.join(
-                    output_class_dir, augmented_output_file
+                augmented_path = os.path.join(
+                    output_class_dir, f"{output_base}_{i}.jpg"
                 )
-                augmented_img.save(augmented_output_path)
-            img.close()
-print(f"Preprocessing completed. Processed images saved to '{output_dir}'.")
+                augmented_img.save(augmented_path, quality=95, optimize=True)
 
-total = 0
-for root, dirs, files in os.walk(output_dir):
-    for file in files:
-        if file.lower().endswith((".png", ".jpg", ".jpeg")):
-            total += 1
+    except Exception as e:
+        print(f"Error processing {img_path}: {e}")
+        return 0
 
-print(f"Total number of processed images: {total}")
+    return 1  # 返回处理成功的图片数
 
-shutil.make_archive("preprocessed", "zip", "preprocessed")
-print(f"Zip archive created: 'preprocessed.zip'")
+
+def main():
+    # 获取所有需要处理的图片路径
+    image_paths = get_image_paths(raw_dirs)
+
+    # 使用多进程处理
+    print(f"Processing {len(image_paths)} images with {cpu_count()} workers...")
+    with Pool(processes=cpu_count()) as pool:
+        results = list(
+            tqdm(
+                pool.imap(process_image, image_paths),
+                total=len(image_paths),
+                desc="Processing images",
+            )
+        )
+
+    # 统计总数
+    total = sum(results) * 2  # 原始图 + 增强图
+    print(f"Preprocessing completed. Total processed images: {total}")
+
+    # 创建压缩包
+    shutil.make_archive("preprocessed", "zip", "preprocessed")
+    print("Zip archive created: 'preprocessed.zip'")
+
+
+if __name__ == "__main__":
+    main()

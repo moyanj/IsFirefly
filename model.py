@@ -9,8 +9,11 @@ from torchvision.models import (
     EfficientNet_V2_S_Weights,
     mobilenet_v3_large,
     MobileNet_V3_Large_Weights,
+    resnet18,
+    ResNet18_Weights,
 )
 import torch.nn as nn
+import torch
 
 
 class Model(nn.Module):
@@ -18,6 +21,11 @@ class Model(nn.Module):
         "resnet152": [resnet152, ResNet152_Weights.IMAGENET1K_V2],
         "resnet50": [resnet50, ResNet50_Weights.IMAGENET1K_V2],
         "resnet34": [resnet34, ResNet34_Weights.IMAGENET1K_V1],
+        "resnet18": [resnet18, ResNet18_Weights.IMAGENET1K_V1],
+        "mobilenet_v3_large": [
+            mobilenet_v3_large,
+            MobileNet_V3_Large_Weights.IMAGENET1K_V1,
+        ],
         "efficientnet_v2_s": [
             efficientnet_v2_s,
             EfficientNet_V2_S_Weights.IMAGENET1K_V1,
@@ -33,21 +41,48 @@ class Model(nn.Module):
         use_pretrained=True,
     ):
         super(Model, self).__init__()
-        self.resnet = self.model_map[model_name][0](
-            weights=self.model_map[model_name][1] if use_pretrained else None,
-            num_classes=num_classes,
+        self.model_name = model_name
+
+        # Load model with pretrained weights
+        self.net = self.model_map[model_name][0](
+            weights=self.model_map[model_name][1] if use_pretrained else None
         )
 
-        # 冻结ResNet-101的卷积层
+        # Freeze backbone if needed
         if freeze_backbone:
-            for param in self.resnet.parameters():
+            for param in self.net.parameters():
                 param.requires_grad = False
 
-        # 替换全连接层
-        self.resnet.fc = nn.Sequential(  # type: ignore
-            nn.Dropout(dropout), nn.Linear(self.resnet.fc.in_features, num_classes)
-        )
+        # Replace classifier/FC layer based on model type
+        if model_name.startswith("resnet"):
+            # For ResNet models
+            in_features = self.net.fc.in_features
+            self.net.fc = nn.Sequential(
+                nn.Dropout(dropout), nn.Linear(in_features, num_classes)
+            )
+        elif model_name == "mobilenet_v3_large":
+            # Keep the feature extraction part (everything before classifier)
+            self.features = self.net.features
+
+            # Get correct input features size
+            in_features = self.net.classifier[0].in_features
+            self.net.classifier = nn.Sequential(
+                nn.Dropout(dropout), nn.Linear(in_features, num_classes)
+            )
+        elif model_name == "efficientnet_v2_s":
+            # For EfficientNet
+            in_features = self.net.classifier[-1].in_features
+            self.net.classifier = nn.Sequential(
+                nn.Dropout(dropout), nn.Linear(in_features, num_classes)
+            )
 
     def forward(self, x):
-        x = self.resnet(x)
+        if self.model_name == "mobilenet_v3_large":
+            # Special handling for MobileNetV3
+            x = self.features(x)
+            x = self.net.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.net.classifier(x)
+        else:
+            x = self.net(x)
         return x
