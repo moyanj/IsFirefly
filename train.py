@@ -335,7 +335,15 @@ def parse_args():
         "--model_name",
         type=str,
         default="resnet152",
-        choices=["resnet18", "resnet50", "resnet152", "mobilenet_v3_large"],
+        choices=[
+            "resnet18",
+            "resnet50",
+            "resnet152",
+            "resnet34",
+            "mobilenet_v3_large",
+            "mobilenet_v3_small",
+            "efficientnet_v2_s",
+        ],
         help="选择模型架构",
     )
     model_group.add_argument(

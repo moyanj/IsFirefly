@@ -11,6 +11,8 @@ from torchvision.models import (
     MobileNet_V3_Large_Weights,
     resnet18,
     ResNet18_Weights,
+    mobilenet_v3_small,
+    MobileNet_V3_Small_Weights,
 )
 import torch.nn as nn
 import torch
@@ -25,6 +27,10 @@ class Model(nn.Module):
         "mobilenet_v3_large": [
             mobilenet_v3_large,
             MobileNet_V3_Large_Weights.IMAGENET1K_V1,
+        ],
+        "mobilenet_v3_small": [
+            mobilenet_v3_small,
+            MobileNet_V3_Small_Weights.IMAGENET1K_V1,
         ],
         "efficientnet_v2_s": [
             efficientnet_v2_s,
@@ -60,7 +66,7 @@ class Model(nn.Module):
             self.net.fc = nn.Sequential(
                 nn.Dropout(dropout), nn.Linear(in_features, num_classes)
             )
-        elif model_name == "mobilenet_v3_large":
+        elif model_name.startswith("mobilenet_v3"):
             # Keep the feature extraction part (everything before classifier)
             self.features = self.net.features
 
@@ -77,7 +83,7 @@ class Model(nn.Module):
             )
 
     def forward(self, x):
-        if self.model_name == "mobilenet_v3_large":
+        if self.model_name.startswith("mobilenet_v3"):
             # Special handling for MobileNetV3
             x = self.features(x)
             x = self.net.avgpool(x)
