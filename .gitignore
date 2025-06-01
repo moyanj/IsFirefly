@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 .gradio/
 *.zip
+photos.csv000

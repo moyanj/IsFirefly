@@ -28,7 +28,7 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 初始化 TensorBoard 的 SummaryWriter（如果启用）
-writer = SummaryWriter(log_dir="/root/tf-logs/if") if args.use_tensorboard else None
+writer = SummaryWriter(log_dir="./tf-logs") if args.use_tensorboard else None
 
 # 删除已存在的输出目录（如果存在）
 shutil.rmtree("models", ignore_errors=True)

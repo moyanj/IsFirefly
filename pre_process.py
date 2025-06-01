@@ -17,11 +17,9 @@ transform = transforms.Compose(
     [
         transforms.RandomRotation(degrees=25),  # 随机旋转角度范围为 [-15, 15]
         transforms.RandomHorizontalFlip(p=0.2),  # 随机水平翻转，概率为 0.5
-        transforms.RandomInvert(p=0.35),
-        transforms.ColorJitter(
-            brightness=0.3, contrast=0.35, saturation=0.47, hue=0.4
-        ),  # 随机调整亮度和对比度
-        transforms.RandomSolarize(p=0.25, threshold=128),
+        # transforms.RandomInvert(p=0.35),        # 随机颜色反转
+        # transforms.ColorJitter(brightness=0.3, contrast=0.35, saturation=0.47, hue=0.4),
+        transforms.RandomSolarize(p=0.25, threshold=128),  # 随机过曝
     ]
 )
 
