@@ -5,7 +5,7 @@ import torch
 import gradio as gr
 import os
 
-model_dir = "models/2025-06-01_17:56"
+model_dir = "models/release"
 
 
 # 定义一个类来封装模型和预测逻辑
@@ -89,7 +89,7 @@ class FireflyPredictor:
 # 主程序
 if __name__ == "__main__":
     # 初始化一个模型实例
-    predictor = FireflyPredictor(model_name="best_ckpt_ep001")
+    predictor = FireflyPredictor(model_name="IsACG_v1_99.06%")
     # 创建 Gradio 接口
     iface = predictor.create_gradio_interface()
     # 启动 Gradio 应用
