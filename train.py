@@ -126,6 +126,7 @@ class Trainer:
             "is_last": is_last,
             "time": datetime.now().isoformat(),
             "step": epoch * len(self.train_loader),
+            "model_name": self.args.model_name,
         }
 
         # 2. 智能文件命名系统
@@ -156,6 +157,7 @@ class Trainer:
             "loss": loss,
             "args": vars(self.args),
             "time": datetime.now().isoformat(),
+            "model_name": self.args.model_name,
         }
         torch.save(checkpoint, f"{self.model_dir}/ckpt_ep{epoch:03d}_{step:05d}.pt")
 
