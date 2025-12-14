@@ -1,5 +1,5 @@
 [project]
-name = "isfirefly"
+name = "isacg"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -10,7 +10,7 @@ dependencies = [
     "onnxruntime>=1.22.0",
     "pillow",
     "tensorboard>=2.19.0",
-    "torch==1.12.1+cu113",
-    "torchvision==0.13.1+cu113",
+    "torch==2.7.0",
+    "torchvision",
     "tqdm",
 ]

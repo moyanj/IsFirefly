@@ -1,8 +1,3 @@
-"""
-深度学习模型训练脚本
-支持功能：多模型训练、TensorBoard可视化、断点续训、自动混合精度等
-"""
-
 from argparse import ArgumentParser
 import torch
 import torch.nn as nn
