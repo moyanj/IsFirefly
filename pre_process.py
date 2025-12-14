@@ -46,11 +46,11 @@ def process_image(args):
     try:
         with Image.open(img_path) as img:
             img = img.convert("RGB")
-            img = img.resize((480, 480))
+            img = img.resize((512, 512))
 
             # 保存原始处理后的图片
             base_output_path = os.path.join(output_class_dir, f"{output_base}.jpg")
-            img.save(base_output_path, quality=95, optimize=True)
+            img.save(base_output_path, quality=85, optimize=True)
 
             # 生成增强图片
             for i in range(1):  # 生成1张增强图

@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from model import Model  # 自定义模型类
 from dataset import dataset  # 自定义数据集类
@@ -18,6 +18,8 @@ from datetime import datetime
 import numpy as np
 import json
 import time
+
+import model
 
 
 class Trainer:
@@ -68,6 +70,7 @@ class Trainer:
             num_classes=2,  # 二分类任务
             freeze_backbone=self.args.freeze_backbone,  # 是否冻结主干网络
             model_name=self.args.model_name,  # 模型架构名称
+            use_pretrained=self.args.use_pretrained,
         ).to(self.device)
 
         # 可选模型编译（PyTorch 2.0+特性）
@@ -226,7 +229,7 @@ class Trainer:
         total = 0
 
         with torch.no_grad():  # 禁用梯度计算
-            for data, target in self.val_loader:
+            for data, target in tqdm(self.val_loader):
                 data, target = data.to(self.device), target.to(self.device)
                 outputs = self.model(data)
                 loss = self.criterion(outputs, target)
@@ -256,8 +259,7 @@ class Trainer:
         # 返回恢复信息
         return {
             "start_epoch": checkpoint["epoch"] + 1,
-            "global_step": checkpoint["global_step"],
-            "best_accuracy": checkpoint["best_accuracy"],
+            "global_step": checkpoint["step"],
         }
 
     def train(self):
@@ -267,7 +269,7 @@ class Trainer:
             resume_info = self.load_checkpoint(self.args.resume_from)
             start_epoch = resume_info["start_epoch"]
             global_step = resume_info["global_step"]
-            best_accuracy = resume_info["best_accuracy"]
+            best_accuracy = 0.0
             print(f"从检查点恢复训练: epoch={start_epoch}, step={global_step}")
         else:
             start_epoch = 0
@@ -353,6 +355,9 @@ def parse_args():
     )
     model_group.add_argument(
         "--compile", action="store_true", help="启用torch.compile()优化"
+    )
+    model_group.add_argument(
+        "--use_pretrained", action="store_true", help="使用预训练权重初始化模型"
     )
 
     # 日志/保存参数组
