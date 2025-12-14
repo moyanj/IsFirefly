@@ -2,6 +2,8 @@
 
 IsACG 是一个专注于判断图像是否为 ACG（**Anime、Comic、Game**）风格的轻量化图像分类系列模型。模型基于 **MobileNetV3-Large** 和 **MobileNetV3-Small** 构建，在保证性能的同时注重低资源占用，适用于多种部署环境。
 
+Hugging Face: [https://huggingface.co/moyanjdc/IsACG/](https://huggingface.co/moyanjdc/IsACG/)
+
 ---
 
 ## 模型架构说明

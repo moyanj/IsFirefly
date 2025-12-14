@@ -1,41 +1,107 @@
-from dataclasses import dataclass
-from dataset import predict_transform, dataset
+import argparse
+import onnxruntime as ort
+import numpy as np
 from model import Model
 from PIL import Image
 import torch
-import gradio as gr
-import os
-
-model_dir = "models/release"
+from dataset import predict_transform
+from abc import ABC, abstractmethod
 
 
-@dataclass
-class Result:
-    class_name: int
-    confidence: float
+class Predictor(ABC):
+    def __init__(self, model: Model, device="cpu"):
+        self.model = model
+        self.device = device
+
+    @abstractmethod
+    def predict(self, image: Image) -> tuple[int, float]:
+        """
+        :param image: PIL.Image 或图像文件路径
+        :return: 预测结果 (predicted_class, confidence)
+        """
+        pass
 
 
-class Predictor:
-    def __init__(self, model_path):
-        self.model_name = ""
-        self.model_path = model_path
-        self.model: Model = None  # type: ignore
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.id_to_class = {1: "是", 0: "不是"}
-
-    def load_model(self, model_name):
-        model_path = os.path.join(self.model_path, model_name + ".pt")
-        if not os.path.exists(model_path):
-            raise ValueError(f"Model '{model_name}' not found in model_map.")
-        self.model_name = model_name
-
-        checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
-        self.model = Model(2, model_name=checkpoint["model_name"], use_pretrained=False)
-        self.model.load_state_dict(checkpoint["model_state"])
-        self.model.to(self.device)
-        self.model.eval()
+class ONNXInference(Predictor):
+    def __init__(self, onnx_path, device="cpu"):
+        """
+        :param onnx_path: ONNX 模型路径
+        :param device: 'cpu' 或 'cuda'（需要安装 onnxruntime-gpu）
+        """
+        self.device = device
+        # 初始化 ONNX 会话
+        providers = (
+            ["CUDAExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
+        )
+        self.session = ort.InferenceSession(onnx_path, providers=providers)
+        self.input_name = self.session.get_inputs()[0].name
 
     def predict(self, image):
+        """
+        :param image: PIL.Image 或图像文件路径
+        :return: 预测结果 (predicted_class, confidence)
+        """
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+
+        img = self._preprocess(image)
+
+        # ONNX 推理
+        outputs = self.session.run(None, {self.input_name: img})
+        output = outputs[0]  # 假设输出是 [batch, num_classes]
+
+        # 后处理
+        predicted = np.argmax(output, axis=1)[0]  # type: ignore
+        probabilities = self._softmax(output[0])  # type: ignore
+        confidence = float(probabilities[predicted])
+
+        return predicted, confidence
+
+    def _preprocess(self, image):
+        """手动实现与 torchvision 相同的预处理"""
+        # 1. Resize
+        image = image.resize((512, 512))  # PIL 的 resize
+
+        # 2. PIL Image → NumPy (HWC, uint8 [0,255] → float32 [0,1])
+        img_np = np.array(image, dtype=np.float32) / 255.0
+
+        # 3. Normalize (mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        img_np = (img_np - mean) / std
+
+        # 4. HWC → CHW (PIL 是 HWC，模型需要 CHW)
+        img_np = np.transpose(img_np, (2, 0, 1))
+
+        # 5. 添加 batch 维度 [C,H,W] → [1,C,H,W]
+        img_np = np.expand_dims(img_np, axis=0)
+        return img_np
+
+    def _softmax(self, x):
+        """手动实现 softmax"""
+        exp_x = np.exp(x - np.max(x))  # 防溢出
+        return exp_x / exp_x.sum()
+
+
+class TorchInference(Predictor):
+    def __init__(self, model_path, device="cpu"):
+        self.device = device
+        self.model = self.load_model(model_path)
+
+    def load_model(self, model_path):
+        """
+        加载 PyTorch 模型
+        :param model_path: 模型路径
+        :return: 模型实例
+        """
+        checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
+        model = Model(2, model_name=checkpoint["model_name"], use_pretrained=False)
+        model.load_state_dict(checkpoint["model_state"])
+        model.to(self.device)
+        model.eval()
+        return model
+
+    def predict(self, image: Image) -> tuple[int, float]:
         img = predict_transform(image)  # 应用预处理
         img = img.unsqueeze(0).to(self.device)  # 添加批量维度并移动到设备
         with torch.no_grad():
@@ -43,56 +109,26 @@ class Predictor:
             _, predicted = torch.max(output, 1)
             probabilities = torch.nn.functional.softmax(output, dim=1)
             confidence = probabilities[0].tolist()
-            return Result(
-                predicted.item(),  # type: ignore
-                confidence[predicted.item()],  # type: ignore
-            )
-
-    def gradio_predict(self, image, model_name):
-        if model_name != self.model_name:
-            self.load_model(model_name)
-
-        # try:
-        result = self.predict(image)
-        confidence_str = f"{result.confidence * 100:.4f}%"  # type: ignore
-
-        # 解析结果
-        return [self.id_to_class[result.class_name], confidence_str]
-        # except Exception as e:
-        # return "Error: " + str(e), 0
-
-    def create_gradio_interface(self):
-        # 定义 Gradio 接口
-        iface = gr.Interface(
-            fn=self.gradio_predict,  # 预测函数
-            inputs=[
-                gr.Image(type="pil"),  # 输入为 PIL 图像
-                gr.Dropdown(
-                    choices=[i.replace(".pt", "") for i in os.listdir(model_dir)],
-                    value=self.model_name,
-                    label="选择模型",
-                    interactive=True,
-                    allow_custom_value=True,
-                ),
-            ],
-            outputs=[
-                gr.Text(label="预测类别"),  # 显示预测类别
-                gr.Text(label="置信度"),  # 显示置信度
-            ],
-            title="是萤宝吗？",  # 页面标题
-            description="上传一张图片，看看是不是萤宝",  # 页面描述
-            submit_btn="检测",  # 提交按钮文本
-            stop_btn="停止",
-            clear_btn="清除",
-        )
-        return iface
+            return predicted.item(), confidence[predicted.item()]
 
 
-# 主程序
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--image_path", type=str, required=True)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    if args.model_path.endswith(".onnx"):
+        predictor = ONNXInference(args.model_path, device=args.device)
+    else:
+        predictor = TorchInference(args.model_path, device=args.device)
+    predicted_class, confidence = predictor.predict(args.image_path)
+    print(f"Predicted class: {predicted_class}, Confidence: {confidence * 100:.4f}%")
+
+
 if __name__ == "__main__":
-    # 初始化一个模型实例
-    predictor = Predictor(model_path="models/release")
-    # 创建 Gradio 接口
-    iface = predictor.create_gradio_interface()
-    # 启动 Gradio 应用
-    iface.launch(server_name="0.0.0.0", server_port=8080, pwa=True)
+    main()
