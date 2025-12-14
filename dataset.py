@@ -18,4 +18,7 @@ predict_transform = transforms.Compose(
     ]
 )
 
-dataset = ImageFolder("preprocessed", transform=transform)
+try:
+    dataset = ImageFolder("preprocessed", transform=transform)
+except FileNotFoundError:
+    dataset = None

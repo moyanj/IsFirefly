@@ -95,4 +95,4 @@ if __name__ == "__main__":
     # 创建 Gradio 接口
     iface = predictor.create_gradio_interface()
     # 启动 Gradio 应用
-    iface.launch(server_name="0.0.0.0", server_port=8080, pwa=True)
+    iface.launch(server_name="0.0.0.0", server_port=8080)
