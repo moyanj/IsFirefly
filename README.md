@@ -161,17 +161,13 @@ result = predictor.predict("image.jpg")
 
 | 设备            | 推理速度     | 内存占用 | 推荐用途 |
 | --------------- | ------------ | -------- | -------- |
-| CPU (i7-12700H) | ~45ms/image  | ~200MB   | 本地测试 |
-| GPU (RTX 3060)  | ~8ms/image   | ~500MB   | 生产部署 |
-| 移动设备        | ~120ms/image | ~100MB   | 移动应用 |
+| CPU (E5-2673V3) | ~25FPS  | ~200MB   | 本地测试 |
+| GPU (GTX 750)  | ~40FPS   | ~500MB   | 生产部署 |
 
 ## 模型格式支持
 
 - ✅ PyTorch (.pt)
 - ✅ ONNX (.onnx)
-- ✅ ONNX量化版 (.onnx_int8)
-- ❌ TensorFlow (计划中)
-- ❌ CoreML (计划中)
 
 ## 常见问题
 
