@@ -1,13 +1,21 @@
 # IsACG - ACG风格图像分类模型
 
-IsACG是一个轻量级的二分类图像分类模型系列，专门用于判断图像是否为ACG（动画、漫画、游戏）风格。项目基于PyTorch实现，提供完整的训练、评估和部署流程。
+<p align="center">
+  <a href="https://huggingface.co/moyanjdc/IsACG"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model%20Hub-yellow"></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.7-red.svg"></a>
+  <a href="https://github.com/moyanjdc/IsACG/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="https://github.com/moyanjdc/IsACG"><img src="https://img.shields.io/badge/GitHub-Repository-black"></a>
+</p>
 
-## 模型特点
+IsACG是一个轻量级的二分类图像分类模型系列，专门用于判断图像是否为ACG（动画、漫画、游戏）或二次元风格。项目基于PyTorch实现，提供完整的训练、评估和部署流程。
 
-- **轻量化设计**：基于MobileNetV3架构，参数量小，推理速度快
-- **高精度**：在ACG风格识别任务上达到99%以上的准确率
-- **易部署**：支持ONNX格式导出，提供Web界面和API服务
-- **完整工具链**：包含数据预处理、训练、评估、转换和部署的全套工具
+## 🌟 模型特色
+
+- **🎯 高精度**: 在ACG识别任务上达到99%准确率
+- **⚡ 轻量快速**: 参数量仅2.5M-5.5M，推理速度快
+- **🔄 多格式支持**: 原生PyTorch、ONNX格式，便于部署
+- **📱 多端适用**: 支持CPU、GPU、移动端部署
+- **🔗 完整工具链**: 包含数据预处理、训练、评估、转换和部署的全套工具
 
 ## 模型版本
 
@@ -16,6 +24,20 @@ IsACG是一个轻量级的二分类图像分类模型系列，专门用于判断
 | v1   | MobileNetV3-Large | 5.5M | ~99.1% | 高精度，适合服务器部署 |
 | v1s  | MobileNetV3-Small | 2.5M | ~98.9% | 轻量快速，适合移动端   |
 | v2   | MobileNetV3-Small | 2.5M | ~97.5% | 改进泛化能力           |
+
+## 🎯 使用场景
+
+### ✅ 推荐使用
+- 动漫/漫画内容过滤
+- 游戏截图识别
+- 二次元风格检测
+- 内容审核系统
+- 图像分类管道
+
+### ⚠️ 注意事项
+- 主要针对风格识别，而非内容理解
+- 对于高度风格化的图像（如3D渲染动漫）可能误判
+- 建议图像分辨率不低于256×256
 
 ## 快速开始
 
@@ -157,36 +179,26 @@ result = predictor.predict("image.jpg")
 - 随机水平翻转 (p=0.5)
 - 随机日晒效果 (p=0.5)
 
-## 性能指标
+### 性能指标
 
 | 设备            | 推理速度     | 内存占用 | 推荐用途 |
 | --------------- | ------------ | -------- | -------- |
 | CPU (E5-2673V3) | ~25FPS  | ~200MB   | 本地测试 |
 | GPU (GTX 750)  | ~40FPS   | ~500MB   | 生产部署 |
 
-## 模型格式支持
+## 📝 技术细节
 
-- ✅ PyTorch (.pt)
-- ✅ ONNX (.onnx)
+### 模型架构
+- **基础网络**: MobileNetV3-Large/Small
+- **输入尺寸**: 512×512
+- **输出**: 二分类（0: 非ACG, 1: ACG）
+- **参数量**: 2.5M (v1s/v2) / 5.5M (v1)
 
-## 常见问题
+### 训练数据
+- **正样本**: 50,00+ ACG图像（动漫、漫画、游戏）（来自@Scighost/爬虫）
+- **负样本**: 50,00+ 真实照片、插画等（来自Unplash）
+- **数据增强**: 随机旋转、翻转、色彩调整
 
-### Q: 如何提高模型准确率？
-A: 
-1. 增加训练数据量和多样性
-2. 调整数据增强策略
-3. 使用更大的模型（如v1版本）
-4. 调整超参数（学习率、批大小等）
-
-### Q: 模型支持哪些图像格式？
-A: Pillow支持的所有格式（需为RGB）
-
-### Q: 如何部署到生产环境？
-A: 
-1. 使用ONNX Runtime进行高效推理
-2. 使用Flask API服务
-3. 考虑使用Docker容器化部署
-4. 添加负载均衡和监控
 
 ## 贡献指南
 
@@ -210,10 +222,16 @@ A:
 
 ## 联系方式
 
-- 项目主页：https://github.com/moyanj/IsFirefly
+- 项目主页：https://github.com/moyanj/IsACG
 - 问题反馈：GitHub Issues
 - 模型下载：[Hugging Face Hub](https://huggingface.co/moyanjdc/IsACG/)
 
 ---
 
 *注：本项目主要用于教育和研究目的。商业使用请确保遵守相关法律法规和版权要求。*
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/moyanjdc">moyanjdc</a> · 
+  <a href="https://huggingface.co/moyanjdc/IsACG">HF Hub</a> · 
+  <a href="https://github.com/moyanjdc/IsACG">GitHub</a>
+</p>
