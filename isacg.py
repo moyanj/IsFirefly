@@ -130,7 +130,7 @@ def main():
     image = Image.open(args.image_path).convert("RGB")
     st = time.time()
     predicted_class, confidence = predictor.predict(image)
-    print(f"Prediction time: {time.time() - st:.4f}s")
+    print(f"Prediction time: {(time.time() - st) *1000:.4f}ms")
     print(f"Predicted class: {predicted_class}, Confidence: {confidence * 100:.4f}%")
 
 
