@@ -13,4 +13,5 @@ dependencies = [
     "torch==2.7.0",
     "torchvision",
     "tqdm",
+    "flask",
 ]

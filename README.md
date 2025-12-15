@@ -104,7 +104,7 @@ IsFirefly/
 ├── webapp.py             # Gradio Web界面
 ├── onnx_server.py        # Flask API服务
 ├── pre_process.py        # 数据预处理
-├── make_unplash.py       # 数据下载工具
+├── make_unplash.py       # Unplash数据下载工具
 ├── look.py               # 模型检查点分析
 ├── pyproject.toml        # 项目配置
 └── README.md             # 说明文档
@@ -179,7 +179,7 @@ A:
 4. 调整超参数（学习率、批大小等）
 
 ### Q: 模型支持哪些图像格式？
-A: 支持常见的图像格式：JPG、PNG、JPEG、BMP
+A: Pillow支持的所有格式（需为RGB）
 
 ### Q: 如何部署到生产环境？
 A: 
@@ -204,14 +204,15 @@ A:
 ## 致谢
 
 - 感谢PyTorch和TorchVision团队
-- 感谢所有贡献者和数据提供者
+- 特别感谢[@Scighost](https://github.com/Scighost)老师的铯图（25%的训练集）
+- 感谢[Unplash](https://unsplash.com/)提供的真实图片图片数据集
 - 感谢开源社区的支持
 
 ## 联系方式
 
-- 项目主页：https://github.com/yourusername/IsFirefly
+- 项目主页：https://github.com/moyanj/IsFirefly
 - 问题反馈：GitHub Issues
-- 模型下载：Hugging Face Hub
+- 模型下载：[Hugging Face Hub](https://huggingface.co/moyanjdc/IsACG/)
 
 ---
 
