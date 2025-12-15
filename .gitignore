@@ -8,3 +8,4 @@ __pycache__/
 photos.csv000
 tf-logs/
 models/
+*.png

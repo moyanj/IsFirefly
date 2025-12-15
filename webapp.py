@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 from dataset import predict_transform, dataset
 from model import Model
 from PIL import Image
@@ -21,6 +22,7 @@ class Predictor:
         self.model_path = model_path
         self.model: Model = None  # type: ignore
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {self.device}")
         self.id_to_class = {1: "是", 0: "不是"}
 
     def load_model(self, model_name):
@@ -53,7 +55,9 @@ class Predictor:
             self.load_model(model_name)
 
         # try:
+        st = time.time()
         result = self.predict(image)
+        print(f"Prediction time: {time.time() - st:.4f}s")
         confidence_str = f"{result.confidence * 100:.4f}%"  # type: ignore
 
         # 解析结果
